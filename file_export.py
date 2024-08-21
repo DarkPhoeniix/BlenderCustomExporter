@@ -6,6 +6,7 @@ bl_info = {
     "description": "Export Custom Scene",
     "category": "Import-Export"}
 
+
 import bpy
 import bpy_extras
 from bpy_extras.io_utils import ExportHelper
@@ -64,93 +65,93 @@ def write_node_data(object, filepath):
         mesh_filepath = str(Path(filepath).parent) + '\\' + mesh_filename
         print(f"Exporting mesh to {mesh_filepath}...")
         write_mesh_data(object, mesh_filepath)
-    
-    
+        
+        material_filepath = str(Path(filepath).parent) + '\\' + material_filename
+        print(f"Exporting material to {mesh_filepath}...")
+        write_material_data(object, material_filepath)
+
+
 def write_mesh_data(object, filepath):
-    def exists(arr, target, size):
+    def exists(arr, target):
         for elem in arr:
-            match = True
-            for i in range (0, size):
-                if elem[i] != target[i]:
-                    match = False
-                    break
-            if match == True:
+            if elem == target:
                 return True
         return False
-
-    def get_index(arr, target, size):
-        for i in range(0, len(arr)):
-            match = True
-            for j in range(0, size):
-                if (arr[i][j] != target[j]):
-                    match = False
-                    break
-            if match == True:
+    
+    def get_index(arr, target):
+        for i in range(len(arr)):
+            if arr[i] == target:
                 return i
         return -1
-
+    
     
     current_obj = bpy.context.active_object
     
     # Triangulate mesh
     print(f"Triangulating mesh...")
     bpy.ops.object.modifier_add(type='TRIANGULATE')
-    # It's really weird, but it should be lowercase, while modifier_add is uppercase...
     bpy.ops.object.modifier_apply(modifier="Triangulate")
-
+    
     mesh = object.to_mesh()
     
     vertices = [v for v in current_obj.data.vertices.values()]
     normals = []
+    tangents = []
     uvs = []
     
     # Get UVs
     for uv in mesh.uv_layers.active.data:
-        if not exists(uvs, uv.uv, 2):
+        if not exists(uvs, uv.uv):
             uvs.append(uv.uv)
     
     # Get normals
     for polygon in mesh.polygons:
-        if not exists(normals, polygon.normal, 3):
-            normals.append(polygon.normal)
+        for index in range(polygon.loop_start, polygon.loop_start + polygon.loop_total):
+            if not exists(normals, mesh.loops[index].normal):
+                normals.append(mesh.loops[index].normal)
+                
+            if not exists(tangents, mesh.loops[index].tangent):
+                tangents.append(mesh.loops[index].tangent)l
     
     # Write data to file
-    with open(filepath, 'w') as fp:
+    with open(filepath, 'w') as file:
         for vert in vertices:
-            fp.write(f"v {vert.co.x} {vert.co.y} {vert.co.z}\n")
+            file.write(f"v {vert.co.x} {vert.co.y} {vert.co.z}\n")
         
-        # TODO: fix normals. use vertex-per-face normal
-        for vert in vertices:
-            fp.write(f"vn {vert.normal.x} {vert.normal.y} {vert.normal.z}\n")
-            
         for uv in uvs:
-            fp.write(f"vt {uv[0]} {uv[1]} 0.0\n")
+            file.write(f"vt {uv[0]} {uv[1]}\n")
+        
+        for normal in normals:
+            file.write(f"vn {normal[0]} {normal[1]} {normal[2]}\n")
+        
+        for tangent in tangents:
+            file.write(f"vtan {tangent[0]} {tangent[1]} {tangent[2]}\n")
         
         for polygon in mesh.polygons:
-            fp.write(f"f ")
+            file.write(f"f ")
             for index in range(polygon.loop_start, polygon.loop_start + polygon.loop_total):
-                fp.write(f"{mesh.loops[index].vertex_index}/{get_index(uvs, mesh.uv_layers.active.data[index].uv, 2)}/{get_index(normals, polygon.normal, 3)} ")
-            fp.write("\n")
-            
+                file.write(f"{mesh.loops[index].vertex_index}/{get_index(uvs, mesh.uv_layers.active.data[index].uv)}/{get_index(normals, mesh.loops[index].normal)}/{get_index(tangents, mesh.loops[index].tangent)} ")
+            file.write("\n")
+
 
 def write_material_data(object, filepath):
     return
 
-         
+
 class SceneExporter(Operator, ExportHelper):
     """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "export_test.some_data"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "custom_export.scene"  # important since its how bpy.ops.import_test.some_data is constructed
     bl_label = "Export Scene Data"
-
+    
     # ExportHelper mix-in class uses this.
     filename_ext = ".scene"
-
+    
     filter_glob: StringProperty(
         default="*.scene",
         options={'HIDDEN'},
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
-
+    
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
     use_setting: BoolProperty(
@@ -158,7 +159,7 @@ class SceneExporter(Operator, ExportHelper):
         description="Example Tooltip",
         default=True,
     )
-
+    
     type: EnumProperty(
         name="Example Enum",
         description="Choose between two items",
@@ -168,7 +169,7 @@ class SceneExporter(Operator, ExportHelper):
         ),
         default='OPT_A',
     )
-
+    
     def execute(self, context):
         return write_scene_data(context, self.filepath, self.use_setting)
 
@@ -191,4 +192,4 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-    bpy.ops.export_test.some_data('INVOKE_DEFAULT')
+    bpy.ops.custom_export.scene('INVOKE_DEFAULT')
