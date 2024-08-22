@@ -62,13 +62,15 @@ def write_node_data(object, filepath):
     bpy.context.view_layer.objects.active = object
     
     if object.type == 'MESH':
+        
+        material_filepath = str(Path(filepath).parent) + '\\' + material_filename
+        print(f"Exporting material to {material_filepath}...")
+        write_material_data(object, material_filepath)
+        
         mesh_filepath = str(Path(filepath).parent) + '\\' + mesh_filename
         print(f"Exporting mesh to {mesh_filepath}...")
         write_mesh_data(object, mesh_filepath)
         
-        material_filepath = str(Path(filepath).parent) + '\\' + material_filename
-        print(f"Exporting material to {mesh_filepath}...")
-        write_material_data(object, material_filepath)
 
 
 def write_mesh_data(object, filepath):
@@ -104,14 +106,14 @@ def write_mesh_data(object, filepath):
         if not exists(uvs, uv.uv):
             uvs.append(uv.uv)
     
-    # Get normals
+    # Get normals and tangents
     for polygon in mesh.polygons:
         for index in range(polygon.loop_start, polygon.loop_start + polygon.loop_total):
             if not exists(normals, mesh.loops[index].normal):
                 normals.append(mesh.loops[index].normal)
                 
             if not exists(tangents, mesh.loops[index].tangent):
-                tangents.append(mesh.loops[index].tangent)l
+                tangents.append(mesh.loops[index].tangent)
     
     # Write data to file
     with open(filepath, 'w') as file:
@@ -135,7 +137,17 @@ def write_mesh_data(object, filepath):
 
 
 def write_material_data(object, filepath):
-    return
+    mat = object.active_material
+    
+    for node in mat.node_tree.nodes:
+        print(f'\ntype {node.type}\n')
+        if node.type == 'TEX_IMAGE':
+            print(f'name {node.image.name}')
+            print(f'filepath {node.image.filepath}')
+        print(f'label {node.label}')
+        print(f'bl_static_type {node.bl_static_type}')
+        print(f'idname {node.idname}')
+        print(f'label {node.label}')
 
 
 class SceneExporter(Operator, ExportHelper):
@@ -176,7 +188,7 @@ class SceneExporter(Operator, ExportHelper):
 
 # Only needed if you want to add into a dynamic menu
 def menu_func_export(self, context):
-    self.layout.operator(ExportSomeData.bl_idname, text="Custom Scene Export (.scene)")
+    self.layout.operator(SceneExporter.bl_idname, text="Custom Scene Export (.scene)")
 
 
 # Register and add to the "file selector" menu (required to use F3 search "Text Export Operator" for quick access).
