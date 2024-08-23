@@ -81,3 +81,16 @@ Modified OBJ file format, added tangents and changed face format to `vertex/uv/n
     f 0/1/0/2 1/2/1/4 2/5/3/7       // Face description: vertex/uv/normal/tangent
 }
 ```
+
+</br>
+</br>
+</br>
+
+### TODO List
+
+- [x] Implement basic full scene parsing 
+- [x] Implement mesh parsing (modified OBJ format)
+- [x] Implement material/texture parsing
+- [ ] Add copying needed textures to output folder
+- [ ] Improve folder structure
+- [ ] Add textures format converter to DDS (BC7) + MipMaps generation
