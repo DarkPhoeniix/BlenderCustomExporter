@@ -13,6 +13,8 @@ from bpy_extras.io_utils import ExportHelper
 from bpy.props import *
 from bpy.types import Operator
 import json
+import mathutils
+from math import radians
 from pathlib import Path
 
 
@@ -47,12 +49,13 @@ def write_node_data(object, filepath):
     
     to_json = { "Name": node_name }
     
+    local_transform = mathutils.Matrix.Rotation(radians(180.0), 4, 'Z') @ mathutils.Matrix.Rotation(radians(90.0), 4, 'X') @ object.matrix_local
     # Parse transform matrix
     to_json["Transform"] = {
-        "r0": f"{object.matrix_local[0][0]} {object.matrix_local[0][1]} {object.matrix_local[0][2]} {object.matrix_local[0][3]}",
-        "r1": f"{object.matrix_local[1][0]} {object.matrix_local[1][1]} {object.matrix_local[1][2]} {object.matrix_local[1][3]}",
-        "r2": f"{object.matrix_local[2][0]} {object.matrix_local[2][1]} {object.matrix_local[2][2]} {object.matrix_local[2][3]}",
-        "r3": f"{object.matrix_local[3][0]} {object.matrix_local[3][1]} {object.matrix_local[3][2]} {object.matrix_local[3][3]}"
+        "r0": f"{local_transform[0][0]} {local_transform[1][0]} {local_transform[2][0]} {local_transform[3][0]}",
+        "r1": f"{local_transform[0][1]} {local_transform[1][1]} {local_transform[2][1]} {local_transform[3][1]}",
+        "r2": f"{local_transform[0][2]} {local_transform[1][2]} {local_transform[2][2]} {local_transform[3][2]}",
+        "r3": f"{local_transform[0][3]} {local_transform[1][3]} {local_transform[2][3]} {local_transform[3][3]}"
     }
         
     # Parse children objects
@@ -188,20 +191,20 @@ class SceneExporter(Operator, ExportHelper):
     
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
-    use_setting: BoolProperty(
-        name="Example Boolean",
-        description="Example Tooltip",
-        default=True,
+    use_setting: EnumProperty(
+        name="Export:",
+        description="Select export option",
+        items=(
+            ('SCENE', "Entire scene", "Export all objects in the scene"),
+            ('SELECTED', "Selected", "Export only selected objects in the scene"),
+        ),
+        default='SCENE',
     )
     
-    type: EnumProperty(
-        name="Example Enum",
-        description="Choose between two items",
-        items=(
-            ('OPT_A', "First Option", "Description one"),
-            ('OPT_B', "Second Option", "Description two"),
-        ),
-        default='OPT_A',
+    test: BoolProperty(
+        name="UVs",
+        description="Export UVs for mesh",
+        default=True
     )
     
     def execute(self, context):
