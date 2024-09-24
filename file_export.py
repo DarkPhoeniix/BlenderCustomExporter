@@ -14,7 +14,6 @@ from bpy.props import *
 from bpy.types import Operator
 import json
 import mathutils
-from math import radians
 from pathlib import Path
 
 
@@ -49,13 +48,14 @@ def write_node_data(object, filepath):
     
     to_json = { "Name": node_name }
     
-    local_transform = mathutils.Matrix.Rotation(radians(180.0), 4, 'Z') @ mathutils.Matrix.Rotation(radians(90.0), 4, 'X') @ object.matrix_local
+    local_transform = object.matrix_local
+    local_transform = local_transform@ mathutils.Matrix.Rotation(90.0, 4, 'X')
     # Parse transform matrix
     to_json["Transform"] = {
-        "r0": f"{local_transform[0][0]} {local_transform[1][0]} {local_transform[2][0]} {local_transform[3][0]}",
-        "r1": f"{local_transform[0][1]} {local_transform[1][1]} {local_transform[2][1]} {local_transform[3][1]}",
-        "r2": f"{local_transform[0][2]} {local_transform[1][2]} {local_transform[2][2]} {local_transform[3][2]}",
-        "r3": f"{local_transform[0][3]} {local_transform[1][3]} {local_transform[2][3]} {local_transform[3][3]}"
+        "r0": f"{object.matrix_local[0][0]} {object.matrix_local[1][0]} {object.matrix_local[2][0]} {object.matrix_local[3][0]}",
+        "r1": f"{object.matrix_local[0][1]} {object.matrix_local[1][1]} {object.matrix_local[2][1]} {object.matrix_local[3][1]}",
+        "r2": f"{object.matrix_local[0][2]} {object.matrix_local[1][2]} {object.matrix_local[2][2]} {object.matrix_local[3][2]}",
+        "r3": f"{object.matrix_local[0][3]} {object.matrix_local[1][3]} {object.matrix_local[2][3]} {object.matrix_local[3][3]}"
     }
         
     # Parse children objects
@@ -69,6 +69,7 @@ def write_node_data(object, filepath):
     bpy.context.view_layer.objects.active = object
     
     if object.type == 'MESH':
+        return
         material_filepath = str(Path(filepath).parent) + '\\' + material_filename
         print(f"Exporting material to {material_filepath}...")
         to_json["Material"] = material_filename
@@ -78,6 +79,11 @@ def write_node_data(object, filepath):
         print(f"Exporting mesh to {mesh_filepath}...")
         to_json["Mesh"] = mesh_filename
         write_mesh_data(object, mesh_filepath)
+    elif object.type == 'LIGHT':
+        light_filepath = str(Path(filepath).parent) + '\\' + node_name + '.light'
+        print(f"Exporting light source to {light_filepath}...")
+        write_light_data(object, light_filepath)
+        
     
     with open(node_filepath, 'w', encoding='utf-8') as output:
         output.write(json.dumps(to_json, indent=4, sort_keys=True))
@@ -170,6 +176,24 @@ def write_material_data(object, filepath):
                     if link.to_socket.name == 'Color':
                         to_json['Normal'] = link.from_socket.node.image.name
     
+    
+    with open(filepath, 'w', encoding='utf-8') as output:
+        output.write(json.dumps(to_json, indent=4, sort_keys=True))
+
+
+def write_light_data(object, filepath):
+    to_json = {}
+    
+    data = object.data
+    to_json['Color'] = f'{data.color[0]}, {data.color[1]}, {data.color[2]}'
+    to_json['Energy'] = data.energy
+    
+    if data.type == 'POINT':
+        to_json['Type'] = 'Point'
+        to_json['Radius'] = data.shadow_soft_size
+    elif data.type == "SUN":
+        to_json['Type'] = 'Directional'
+        
     
     with open(filepath, 'w', encoding='utf-8') as output:
         output.write(json.dumps(to_json, indent=4, sort_keys=True))
