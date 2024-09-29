@@ -1,4 +1,4 @@
-# Custom Blender Exprter
+# Custom Blender Exporter
 
 Blender add-on for exporting scene to custom format (.scene).</br>
 Example:
@@ -34,7 +34,7 @@ BlenderScene
 ```
 
 ### Node description
-Contains description of the current object in scene hierarchy. File has links to material and mesh files if they exist. 
+Contains a description of the current object in the scene hierarchy. The file has links to material and mesh files if they exist. 
 ```
 {
     "Type": "Object",               // Mandatory. Type of the node (Object, Light)
@@ -57,17 +57,17 @@ Contains description of the current object in scene hierarchy. File has links to
 ```
 
 ### Material description
-File contains filepath to all textures used for mesh in current node.
+The file contains the path to all textures used for mesh in the current node.
 ```
 {
-    "Albedo": "Model_albedo.dds",   // Optional. Albedo/Base color texture filepath
-    "Metallics": "Model_metal.dds", // Optional. Metallic texture filepath
-    "Normal": "Model_normal.dds",   // Optional. Normal map filepath
+    "Albedo": "Model_albedo.dds",   // Optional. Albedo/Base color texture file path
+    "Metallics": "Model_metal.dds", // Optional. Metallic texture file path
+    "Normal": "Model_normal.dds",   // Optional. Normal map file path
 }
 ```
 
 ### Mesh description
-Modified OBJ file format, added tangents and changed face format to `vertex/uv/normal/tangent`
+Modified OBJ file format, added tangents, and changed face format to `vertex/uv/normal/tangent`
 ```
 {
     v 1.0 0.0 -2.0                  // Vertex
@@ -103,10 +103,13 @@ File contains description of the light source.
 
 ### TODO List
 
-- [x] Implement basic full scene parsing 
+- [x] Implement basic scene parsing 
 - [x] Implement mesh parsing (modified OBJ format)
 - [x] Implement material/texture parsing
-- [x] Implement light sources parsing
-- [ ] Add copying needed textures to output folder
+- [ ] Add copying needed textures to the output folder
 - [ ] Improve folder structure
 - [ ] Add textures format converter to DDS (BC7) + MipMaps generation
+- [ ] Add Camera node support
+- [x] Add Light (Point, Directional) nodes support
+- [ ] Improve material graph parsing algo
+- [ ] Implement partial scene parsing (only selected objects)
