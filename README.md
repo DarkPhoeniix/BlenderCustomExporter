@@ -17,6 +17,8 @@ BlenderScene
         ⤷ Node_04
             ⤷ Material_10
             ⤷ Mesh_09
+    ⤷ Node_00
+        ⤷ Light_01
 ```
 
 ### Scene description
@@ -35,8 +37,7 @@ BlenderScene
 Contains description of the current object in scene hierarchy. File has links to material and mesh files if they exist. 
 ```
 {
-    "Material": "Wyrm.mat",         // Optional. Filepath of the metarial desc for the current node
-    "Mesh": "Wyrm.mesh",            // Optional. Filepath of the mesh desc for the current node
+    "Type": "Object",               // Mandatory. Type of the node (Object, Light)
     "Name": "MySceneName",          // Mandatory. Node name from Blender
     "Nodes":                        // Mandatory. Children nodes of the current node
     {
@@ -48,7 +49,10 @@ Contains description of the current object in scene hierarchy. File has links to
         "r1": "0.0 1.0 0.0 0.0",
         "r2": "0.0 0.0 1.0 0.0",
         "r3": "1.0 2.0 3.0 1.0"
-    }
+    },
+    "Material": "ThisNode.mat",     // Optional.  Filepath of the metarial desc for the current node
+    "Mesh": "ThisNode.mesh",        // Optional.  Filepath of the mesh desc for the current node
+    "Light": "ThisNode.light"       // Optional.  Filepath of the light desc for the current node
 }
 ```
 
@@ -82,6 +86,17 @@ Modified OBJ file format, added tangents and changed face format to `vertex/uv/n
 }
 ```
 
+### Light description
+File contains description of the light source.
+```
+{
+    "Type": "Point",                // WIP
+    "Color": "0.0, 20.0, -5.0",     // WIP
+    "Energy": 150.0,                // WIP
+    "Radius": 20.0,                 // WIP
+}
+```
+
 </br>
 </br>
 </br>
@@ -91,6 +106,7 @@ Modified OBJ file format, added tangents and changed face format to `vertex/uv/n
 - [x] Implement basic full scene parsing 
 - [x] Implement mesh parsing (modified OBJ format)
 - [x] Implement material/texture parsing
+- [x] Implement light sources parsing
 - [ ] Add copying needed textures to output folder
 - [ ] Improve folder structure
 - [ ] Add textures format converter to DDS (BC7) + MipMaps generation
