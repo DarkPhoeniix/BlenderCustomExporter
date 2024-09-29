@@ -101,19 +101,22 @@ class SceneExporter(Operator, ExportHelper):
         bpy.context.view_layer.objects.active = object
         
         if object.type == 'MESH':
+            to_json['Type'] = 'Object'
             material_filepath = str(Path(filepath).parent) + '\\' + material_filename
             print(f"Exporting material to {material_filepath}...")
             to_json["Material"] = material_filename
-            write_material_data(object, material_filepath)
+            self.export_material(object, material_filepath)
             
             mesh_filepath = str(Path(filepath).parent) + '\\' + mesh_filename
             print(f"Exporting mesh to {mesh_filepath}...")
             to_json["Mesh"] = mesh_filename
             self.export_mesh(object, mesh_filepath)
         elif object.type == 'LIGHT':
+            to_json['Type'] = 'Light'
             light_filepath = str(Path(filepath).parent) + '\\' + node_name + '.light'
             print(f"Exporting light source to {light_filepath}...")
-            self.export_light(object, light_filepath)
+            to_json["Light"] = node_name + '.light'
+            self.export_light(object, light_filepath)            
             
         with open(node_filepath, 'w', encoding='utf-8') as output:
             output.write(json.dumps(to_json, indent=4, sort_keys=True))
@@ -185,6 +188,9 @@ class SceneExporter(Operator, ExportHelper):
     def export_material(self, object, filepath):
         mat = object.active_material
         
+        if not mat:
+            return
+        
         to_json = {}
         
         for node in mat.node_tree.nodes:
@@ -198,7 +204,7 @@ class SceneExporter(Operator, ExportHelper):
                     if socket_name == 'Base Color':
                         to_json['Albedo'] = node.image.name
                     if socket_name == 'Metallic':
-                        to_json['Metallic'] = node.image.name
+                        to_json['Metalness'] = node.image.name
                             
             if node.type == 'NORMAL_MAP':
                 for input in node.inputs:
@@ -225,7 +231,7 @@ class SceneExporter(Operator, ExportHelper):
             
         with open(filepath, 'w', encoding='utf-8') as output:
             output.write(json.dumps(to_json, indent=4, sort_keys=True))
-    
+
 
 # Only needed if you want to add into a dynamic menu
 def menu_func_export(self, context):
