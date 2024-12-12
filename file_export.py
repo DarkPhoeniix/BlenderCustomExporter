@@ -115,9 +115,10 @@ class SceneExporter(Operator, ExportHelper):
         light_filepath = parent_path + light_filename
         
 
-        # Parse transformation matrix and convert coord system
-        transform_matrix = mathutils.Matrix.transposed(node.matrix_local)                     # Change right-handed system to left-handed
-        transform_matrix[1], transform_matrix[2] = transform_matrix[2], transform_matrix[1]   # Change Z-up to Y-up axis
+        # Parse transformation matrix and convert coordinate system to left-handed (Y-up)
+        transform_matrix = mathutils.Matrix.transposed(node.matrix_local)
+        transform_matrix_copy = transform_matrix.copy()
+        transform_matrix[1], transform_matrix[2] = -transform_matrix_copy[2], transform_matrix_copy[1]
         
         # Parse children objects
         children_objects = []
@@ -146,10 +147,10 @@ class SceneExporter(Operator, ExportHelper):
             to_json['Mesh'] = mesh_filename
             self.export_mesh(node, mesh_filepath)
             
-            to_json['Armature'] = armature_filepath
+            to_json['Armature'] = armature_filename
             self.export_armature(node, armature_filepath)
             
-            to_json['Animation'] = animation_filepath
+            to_json['Animation'] = animation_filename
             self.export_animation(node, animation_filepath)
             
         elif node.type == 'LIGHT':
@@ -229,14 +230,28 @@ class SceneExporter(Operator, ExportHelper):
             
             for vertex in object.data.vertices:
                 file.write('gi')
-                for group in vertex.groups:
-                    file.write(f' {group.group}')
+
+                vertex_groups = [0, 0, 0, 0]
+                for i in range(len(vertex.groups)):
+                    if i >= 4:
+                        break
+                    vertex_groups[i] = vertex.groups[i].group
+
+                for group_id in vertex_groups:
+                    file.write(f' {group_id}')
                 file.write('\n')
                 
             for vertex in object.data.vertices:
                 file.write('gw')
-                for group in vertex.groups:
-                    file.write(f' {group.weight}')
+
+                vertex_group_weights = [0.0, 0.0, 0.0, 0.0]
+                for i in range(len(vertex.groups)):
+                    if i >= 4:
+                        break
+                    vertex_group_weights[i] = vertex.groups[i].weight
+
+                for group_weight in vertex_group_weights:
+                    file.write(f' {group_weight}')
                 file.write('\n')
                 
             for uv in uvs:
@@ -325,13 +340,20 @@ class SceneExporter(Operator, ExportHelper):
         '''Exports armature data to the given filepath'''
 
         # Helper function to parse bone's data
-        def parse_bone_data(armature, bone):
-            bone_info = {}
-            bone_info['Name'] = bone.name
+        def parse_bone_data(object, armature, bone):
             # Calculate the inverse (bind pose matrix)
             rest_matrix = bone.matrix_local
             offset_matrix = rest_matrix.inverted()
             bone_transform = mathutils.Matrix.transposed(offset_matrix)
+            
+            bone_group = object.vertex_groups.get(bone.name)
+            bone_index = -1
+            if bone_group is not None:
+                bone_index = bone_group.index
+                
+            bone_info = {}
+            bone_info['Name'] = bone.name
+            bone_info["ID"] = bone_index
             bone_info['Offset'] = {
                 'r0': f'{bone_transform[0][0]} {bone_transform[0][1]} {bone_transform[0][2]} {bone_transform[0][3]}',
                 'r1': f'{bone_transform[1][0]} {bone_transform[1][1]} {bone_transform[1][2]} {bone_transform[1][3]}',
@@ -340,7 +362,7 @@ class SceneExporter(Operator, ExportHelper):
             }
             bone_info['Children'] = []
             for child_bone in bone.children:
-                bone_info['Children'].append(parse_bone_data(armature, child_bone))
+                bone_info['Children'].append(parse_bone_data(object, armature, child_bone))
 
             return bone_info
 
@@ -364,7 +386,7 @@ class SceneExporter(Operator, ExportHelper):
 
         for bone in armature.bones:
             if bone.parent is None:
-                to_json['Armature'].append(parse_bone_data(armature, bone))
+                to_json['Armature'].append(parse_bone_data(object, armature, bone))
 
         with open(filepath, 'w', encoding='utf-8') as output:
             output.write(json.dumps(to_json, indent=4))
@@ -389,16 +411,20 @@ class SceneExporter(Operator, ExportHelper):
         action = armature_obj.animation_data.action
 
         animations = {}
-        animations[action.name] = {}
+        animations['Frames'] = {}
 
         # Determine the frame range of the action
         frame_start = int(action.frame_range[0])
         frame_end = int(action.frame_range[1])
+        
+        animations['Duration'] = frame_end - frame_start
+        animations['FrameRate'] = bpy.context.scene.render.fps
 
+        current_frame_index = 0
         for frame_index in range(frame_start, frame_end + 1):
             bpy.context.scene.frame_set(frame_index)
 
-            animations[action.name][frame_index] = {}
+            animations['Frames'][current_frame_index] = {}
             for bone in pose.bones:
                 parent_bone = bone.parent
                 local_matrix = None
@@ -413,12 +439,13 @@ class SceneExporter(Operator, ExportHelper):
                 
                 matrix = mathutils.Matrix.transposed(local_matrix)
                 
-                animations[action.name][frame_index][bone.name] = {
+                animations['Frames'][current_frame_index][bone.name] = {
                     'r0': f'{matrix[0][0]} {matrix[0][1]} {matrix[0][2]} {matrix[0][3]}',
                     'r1': f'{matrix[1][0]} {matrix[1][1]} {matrix[1][2]} {matrix[1][3]}',
                     'r2': f'{matrix[2][0]} {matrix[2][1]} {matrix[2][2]} {matrix[2][3]}',
                     'r3': f'{matrix[3][0]} {matrix[3][1]} {matrix[3][2]} {matrix[3][3]}'
                 }
+            current_frame_index += 1
         
         to_json = animations
         
@@ -431,7 +458,7 @@ def menu_func_export(self, context):
     self.layout.operator(SceneExporter.bl_idname, text='Custom Scene Export (.scene)')
 
 
-# Register and add to the 'file selector' menu (required to use F3 search 'Text Export Operator' for quick access).
+# Register and add to the 'file selector' menu (required to use F3 search 'Custom Scene Export' for quick access).
 def register():
     bpy.utils.register_class(SceneExporter)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
