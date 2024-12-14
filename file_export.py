@@ -117,6 +117,7 @@ class SceneExporter(Operator, ExportHelper):
 
         # Parse transformation matrix and convert coordinate system to left-handed (Y-up)
         transform_matrix = mathutils.Matrix.transposed(node.matrix_local)
+        translation = transform_matrix[3]
         transform_matrix_copy = transform_matrix.copy()
         transform_matrix[1], transform_matrix[2] = -transform_matrix_copy[2], transform_matrix_copy[1]
         
@@ -135,7 +136,7 @@ class SceneExporter(Operator, ExportHelper):
             'r0': f'{transform_matrix[0][0]} {transform_matrix[0][1]} {transform_matrix[0][2]} {transform_matrix[0][3]}',
             'r1': f'{transform_matrix[1][0]} {transform_matrix[1][1]} {transform_matrix[1][2]} {transform_matrix[1][3]}',
             'r2': f'{transform_matrix[2][0]} {transform_matrix[2][1]} {transform_matrix[2][2]} {transform_matrix[2][3]}',
-            'r3': f'{transform_matrix[3][0]} {transform_matrix[3][1]} {transform_matrix[3][2]} {transform_matrix[3][3]}'
+            'r3': f'{translation[0]} {translation[1]} {translation[2]} {translation[3]}'
         }
         to_json['Children'] = children_objects
 
@@ -156,10 +157,7 @@ class SceneExporter(Operator, ExportHelper):
         elif node.type == 'LIGHT':
             to_json['Light'] = light_filepath
             self.export_light(node, light_filepath)
-
-        else:
-            return
-        
+            
         with open(node_filepath, 'w', encoding='utf-8') as output:
             output.write(json.dumps(to_json, indent=4))
             
@@ -282,10 +280,10 @@ class SceneExporter(Operator, ExportHelper):
             return
         
         to_json = {
-            'Albedo':"",
-            'Metalness':"",
-            'Roughness':"",
-            'Normal':""
+            'Albedo':'',
+            'Metalness':'',
+            'Roughness':'',
+            'Normal':''
         }
         
         for node in mat.node_tree.nodes:
@@ -344,7 +342,9 @@ class SceneExporter(Operator, ExportHelper):
             # Calculate the inverse (bind pose matrix)
             rest_matrix = bone.matrix_local
             offset_matrix = rest_matrix.inverted()
+
             bone_transform = mathutils.Matrix.transposed(offset_matrix)
+            bone_translation = bone_transform[3]
             
             bone_group = object.vertex_groups.get(bone.name)
             bone_index = -1
@@ -353,12 +353,12 @@ class SceneExporter(Operator, ExportHelper):
                 
             bone_info = {}
             bone_info['Name'] = bone.name
-            bone_info["ID"] = bone_index
+            bone_info['ID'] = bone_index
             bone_info['Offset'] = {
                 'r0': f'{bone_transform[0][0]} {bone_transform[0][1]} {bone_transform[0][2]} {bone_transform[0][3]}',
                 'r1': f'{bone_transform[1][0]} {bone_transform[1][1]} {bone_transform[1][2]} {bone_transform[1][3]}',
                 'r2': f'{bone_transform[2][0]} {bone_transform[2][1]} {bone_transform[2][2]} {bone_transform[2][3]}',
-                'r3': f'{bone_transform[3][0]} {bone_transform[3][1]} {bone_transform[3][2]} {bone_transform[3][3]}'
+                'r3': f'{bone_translation[0]} {bone_translation[1]} {bone_translation[2]} {bone_translation[3]}'
             }
             bone_info['Children'] = []
             for child_bone in bone.children:
@@ -438,12 +438,12 @@ class SceneExporter(Operator, ExportHelper):
                     local_matrix = bone.matrix
                 
                 matrix = mathutils.Matrix.transposed(local_matrix)
+                # Decompose the local matrix into location and rotation
+                location, rotation, _ = local_matrix.decompose()
                 
                 animations['Frames'][current_frame_index][bone.name] = {
-                    'r0': f'{matrix[0][0]} {matrix[0][1]} {matrix[0][2]} {matrix[0][3]}',
-                    'r1': f'{matrix[1][0]} {matrix[1][1]} {matrix[1][2]} {matrix[1][3]}',
-                    'r2': f'{matrix[2][0]} {matrix[2][1]} {matrix[2][2]} {matrix[2][3]}',
-                    'r3': f'{matrix[3][0]} {matrix[3][1]} {matrix[3][2]} {matrix[3][3]}'
+                    'LocationVec': f'{location[0]} {location[1]} {location[2]} 1.0',
+                    'RotationQuat': f'{rotation[1]} {rotation[2]} {rotation[3]} {rotation[0]}'
                 }
             current_frame_index += 1
         
